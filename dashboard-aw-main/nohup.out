@@ -1,0 +1,696 @@
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY
+🔧 Environment Variable Management Script
+========================================
+[0;34m[ENV][0m Checking environment configuration...
+[0;32m[SUCCESS][0m Symlink already exists and is correct
+[0;34m[ENV][0m Loading environment variables from /home/ubuntu/.env...
+[0;34m[ENV][0m Verifying critical environment variables...
+[0;32m[SUCCESS][0m All critical environment variables are loaded
+[0;34m[ENV][0m Environment configuration summary:
+  Root .env: /home/ubuntu/.env
+  Project .env: /home/ubuntu/aw/dashboard-aw-main/.env
+  Symlink target: /home/ubuntu/.env
+  NODE_ENV: 'not set'
+  API Keys loaded: ✅
+[0;34m[ENV][0m Cleaning up duplicate environment files...
+[0;32m[SUCCESS][0m Cleanup completed
+[0;34m[ENV][0m Verifying environment setup...
+[0;32m[SUCCESS][0m Environment variables are accessible
+[0;32m[SUCCESS][0m API key format is valid
+[0;32m[SUCCESS][0m Symlink is working correctly
+
+[0;32m[SUCCESS][0m Environment setup completed successfully!
+
+📋 Next steps:
+  1. Development: npm run dev
+  2. Production: npm run build && npm start
+  3. PM2: pm2 start ecosystem.config.js
+
+🔍 To verify environment variables:
+  source scripts/ensure-env.sh && echo $NEXT_PUBLIC_ALPHA_VANTAGE_API_KEY

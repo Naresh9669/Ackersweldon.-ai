@@ -1,0 +1,27 @@
+Date: Sat, 02 Aug 2025 18:46:18 GMT
+Content-Type: application/json
+Content-Encoding: br
+Vary: Cookie, Origin
+Server-Timing: cfCacheStatus;desc="DYNAMIC"
+Server-Timing: cfEdge;dur=6,cfOrigin;dur=291
+Report-To: {"group":"heroku-nel","endpoints":[{"url":"https://nel.heroku.com/reports?s=ECA%2Bv32a2e0a7qyp%2Fml9%2F7Yn639%2BvDOSSuZlUX8FSrw%3D\u0026sid=1b10b0ff-8a76-4548-befa-353fc6c6c045\u0026ts=1754160378"}],"max_age":3600}
+Referrer-Policy: same-origin
+Reporting-Endpoints: heroku-nel="https://nel.heroku.com/reports?s=ECA%2Bv32a2e0a7qyp%2Fml9%2F7Yn639%2BvDOSSuZlUX8FSrw%3D&sid=1b10b0ff-8a76-4548-befa-353fc6c6c045&ts=1754160378"
+X-Content-Type-Options: nosniff
+Cross-Origin-Opener-Policy: same-origin
+Cf-Ray: 968fbcbb2f76388c-IAD
+Via: 2.0 heroku-router
+Cf-Cache-Status: DYNAMIC
+Nel: {"report_to":"heroku-nel","response_headers":["Via"],"max_age":3600,"success_fraction":0.01,"failure_fraction":0.1}
+X-Frame-Options: DENY
+Allow: GET, HEAD, OPTIONS
+X-Ratelimit-Requests-Limit: 500
+X-Ratelimit-Requests-Remaining: 481
+X-Ratelimit-Requests-Reset: 29228
+X-Ratelimit-Rapid-Free-Plans-Hard-Limit-Limit: 500000
+X-Ratelimit-Rapid-Free-Plans-Hard-Limit-Remaining: 499981
+X-Ratelimit-Rapid-Free-Plans-Hard-Limit-Reset: 2621228
+Server: RapidAPI-1.2.8
+X-Rapidapi-Version: 1.2.8
+X-Rapidapi-Region: AWS - us-east-1
+X-Rapidapi-Request-Id: 7aa7fbcfec50064ab8b0421bd06ed3d286666e634b944ddb719939d0f6a84d4d

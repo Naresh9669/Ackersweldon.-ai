@@ -1,0 +1,398 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Stabilize scrollbar & body width to prevent layout shifts */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  /* keeps layout width consistent whether the vertical scrollbar is visible or not */
+  scrollbar-gutter: stable both-edges;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent;
+  }
+  
+  .glass-effect {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+
+  /* Layout fixes for sidebar */
+  .sidebar-layout {
+    @apply flex min-h-screen w-full;
+  }
+  
+  .sidebar-main {
+    @apply flex-1 flex flex-col min-w-0;
+  }
+  
+  .sidebar-content {
+    @apply flex-1 px-6 py-8 overflow-y-auto w-full;
+  }
+  
+  /* Prevent white blocks */
+  .no-white-blocks {
+    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50;
+  }
+  
+  /* Ensure proper flexbox behavior */
+  .flex-container {
+    display: flex;
+    width: 100%;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  
+  .sidebar-container {
+    flex: 0 0 auto;
+    width: 16rem; /* w-64 */
+    transition: width 0.3s ease;
+  }
+  
+  .main-container {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+  
+  .content-area {
+    flex: 1;
+    padding: 2rem 1.5rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Force full width and prevent overflow */
+  .force-full-width {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Ensure background covers entire viewport */
+  .full-bg {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  
+  /* Fix white column issue in sidebar */
+  .sidebar-wrapper {
+    background: transparent !important;
+    overflow: hidden !important;
+  }
+  
+  .sidebar-wrapper > * {
+    background: transparent !important;
+  }
+  
+  /* Ensure main content area fills the remaining space */
+  .main-content-area {
+    flex: 1;
+    min-width: 0;
+    background: var(--background);
+    overflow-x: hidden;
+  }
+  
+  /* Prevent white gaps in sidebar transitions */
+  [data-sidebar="sidebar"] {
+    background: var(--sidebar-background, hsl(var(--background))) !important;
+  }
+  
+  /* Ensure proper z-index layering */
+  .sidebar-container {
+    z-index: 10;
+    position: relative;
+  }
+  
+  /* Additional fixes for white column issue */
+  .main-container {
+    position: relative;
+    overflow-x: hidden;
+    max-width: calc(100vw - 16rem); /* Account for sidebar width */
+  }
+  
+  .content-area {
+    position: relative;
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  /* Force container to respect viewport constraints */
+  .flex.min-h-screen {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  
+  /* Ensure sidebar doesn't create overflow */
+  .sidebar-container {
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  
+  /* Prevent any horizontal scrolling */
+  body, html {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  
+  /* News page specific layout fixes */
+  .news-page-layout {
+    display: flex;
+    min-height: 100vh;
+    width: 100vw;
+    max-width: 100vw;
+    overflow-x: hidden;
+    background: rgb(249 250 251); /* bg-gray-50 */
+  }
+  
+  .news-page-layout .sidebar-container {
+    flex: 0 0 16rem;
+    width: 16rem;
+    overflow: hidden;
+  }
+  
+  .news-page-layout .main-container {
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100vw - 16rem);
+    overflow-x: hidden;
+  }
+  
+  .news-page-layout .content-area {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 1.5rem;
+  }
+  
+  @media (min-width: 640px) {
+    .news-page-layout .content-area {
+      padding: 1.5rem 2rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .news-page-layout .content-area {
+      padding: 2rem 3rem;
+    }
+  }
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-border: 240 5.9% 90%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 142.1 76.2% 36.3%;
+    --radius: 0.75rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    
+    /* Custom dashboard colors */
+    --dashboard-primary: 221 83% 53%;
+    --dashboard-primary-foreground: 210 40% 98%;
+    --dashboard-secondary: 215 25% 27%;
+    --dashboard-secondary-foreground: 210 40% 98%;
+    --dashboard-accent: 210 40% 96%;
+    --dashboard-accent-foreground: 222 47% 11%;
+    --dashboard-muted: 210 40% 96%;
+    --dashboard-muted-foreground: 215 16% 47%;
+    --dashboard-border: 214 32% 91%;
+    --dashboard-ring: 221 83% 53%;
+  }
+
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 0 0% 95%;
+    --card: 24 9.8% 10%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 142.4 71.8% 29.2%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    
+    /* Dark mode dashboard colors */
+    --dashboard-primary: 217 91% 60%;
+    --dashboard-primary-foreground: 222 47% 11%;
+    --dashboard-secondary: 215 25% 27%;
+    --dashboard-secondary-foreground: 210 40% 98%;
+    --dashboard-accent: 217 33% 17%;
+    --dashboard-accent-foreground: 210 40% 98%;
+    --dashboard-muted: 217 33% 17%;
+    --dashboard-muted-foreground: 215 20% 65%;
+    --dashboard-border: 215 25% 27%;
+    --dashboard-ring: 217 91% 60%;
+  }
+}
+
+@layer components {
+  .dashboard-card {
+    @apply bg-white rounded-2xl border border-gray-200 shadow-sm hover:shadow-md transition-all duration-300;
+  }
+  
+  .dashboard-button {
+    @apply px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+  }
+  
+  .dashboard-button-secondary {
+    @apply px-4 py-2 bg-white text-gray-700 font-medium rounded-xl border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2;
+  }
+  
+  .status-indicator {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .status-operational {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .status-degraded {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .status-maintenance {
+    @apply bg-blue-100 text-blue-800;
+  }
+  
+  .status-down {
+    @apply bg-red-100 text-red-800;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Focus styles */
+.focus-visible:focus {
+  outline: 2px solid hsl(var(--dashboard-ring));
+  outline-offset: 2px;
+}
+
+nextjs-portal {
+  display: none;
+}
+
+/* Custom CSS for sidebar layout fixes */
+.sidebar-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.sidebar-content {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* Ensure no horizontal scrollbar */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Responsive sidebar behavior */
+@media (max-width: 768px) {
+  .sidebar-layout {
+    flex-direction: column;
+  }
+}
+
+/* Fix for potential white space issues */
+.main-content {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}

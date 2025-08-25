@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "@types/react": "19.1.11",
+    "typescript": "5.9.2"
+  },
+  "dependencies": {
+    "d3-shape": "3.2.0",
+    "recharts": "2.12.7",
+    "victory-vendor": "36.6.11"
+  }
+}

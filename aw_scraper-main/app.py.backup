@@ -1,0 +1,399 @@
+from flask import Flask, request, jsonify
+import requests
+import json
+from ackers_weldon.Ollama_Models.news_processor import NewsProcessor
+from ackers_weldon.Ollama_Models.sp500_processor import SP500Processor
+from sentence_transformers import SentenceTransformer
+import os
+from dotenv import load_dotenv
+from data.goeurn import geo_urn
+import yfinance as yf
+
+
+load_dotenv()
+
+app = Flask(__name__)
+# Register search blueprint
+from api.routes.search import bp as search_bp
+app.register_blueprint(search_bp)
+
+
+
+@app.route("/news", methods=["POST"])
+def news():
+    spider = request.form.get('spider')
+    crawl_args = json.dumps({})
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name={spider}_news&crawl_args={crawl_args}')
+    return jsonify(res.json()["items"] or [])
+
+
+@app.route("/search-news", methods=["POST"])
+def searchNews():
+    spider = request.form.get('spider')
+    query = request.form.get('query') or "default"
+    news_count = request.form.get('news_count') or 20
+    crawl_args = json.dumps({
+        "query": query,
+        "news_count": news_count,
+        "quotes_count": 0
+    })
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name={spider}_search&crawl_args={crawl_args}')
+    return jsonify(res.json()["items"] or [])
+
+
+@app.route("/search-quotes", methods=["POST"])
+def searchQuotes():
+    spider = request.form.get('spider')
+    query = request.form.get('query') or "default"
+    quotes_count = request.form.get('quotes_count') or 5
+    crawl_args = json.dumps({
+        "query": query,
+        "news_count": 0,
+        "quotes_count": quotes_count
+    })
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name={spider}_search&crawl_args={crawl_args}')
+    return jsonify(res.json()["items"] or [])
+
+
+@app.route("/twitter/getTimeline", methods=["GET"])
+def getTimeline():
+    userId = request.args.get('user_id')
+    crawl_args = json.dumps({
+        "payload": {
+            "userId": userId,
+            "count": 20,
+            "includePromotedContent": False,
+            "withQuickPromoteEligibilityTweetFields": False,
+            "withVoice": True,
+            "withV2Timeline": True
+        },
+        "userId": userId
+    })
+
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name=twitter_tweets&crawl_args={crawl_args}')
+    return jsonify(res.json()["items"] or [])
+
+
+@app.route("/twitter/getUserId", methods=["GET"])
+def getUserId():
+    '''
+    ### Example of success response:
+    username: "Bloomberg"
+
+    ``` json
+    [
+        {
+            "_id": "34713362",
+            "user_handle": "business",
+            "user_name": "Bloomberg"
+        }
+    ]
+    ```
+    '''
+    username = request.args.get("username")
+    crawl_args = json.dumps(
+        {
+            "payload": {
+                "screen_name": username,
+                "withSafetyModeUserFields": True,
+                "withHighlightedLabel": True
+            }
+        }
+    )
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name=twitter_user_info&crawl_args={crawl_args}')
+    return jsonify(res.json()["items"] or [])
+
+
+@app.route("/process-news", methods=["GET"])
+def processNews():
+    newsProcessor = NewsProcessor(
+        f'mongodb://{os.getenv("MONGODB_INITDB_ROOT_USERNAME")}:{os.getenv("MONGODB_INITDB_ROOT_PASSWORD")}@localhost:27017/?directConnection=true', "aw", "news")
+    newsProcessor.process_all_news()
+    return jsonify({"message": "News processed successfully."})
+
+
+@app.route("/get-embedding", methods=["GET"])
+def getEmbedding():
+    prompt = request.args.get("prompt")
+    model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+    return jsonify({"embedding": model.encode(prompt).tolist()})
+
+
+@app.route("/individual-check", methods=["GET"])
+def individualCheck():
+    query = request.args.get("query") or ""
+    firm = request.args.get("firm") or None
+    page = request.args.get("page") or 0
+    page = int(page)
+    crawl_args = json.dumps({
+        "query": query,
+        "firm": firm,
+        "page": (page * 12)
+    })
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name=finra_individual&crawl_args={crawl_args}')
+    data = res.json()["items"]
+
+    data_return = []
+
+    for item in data:
+        try:
+            # Safely access basic information
+            first_name = item.get("basic_information", {}
+                                  ).get("first_name", "")
+            middle_name = item.get("basic_information",
+                                   {}).get("middle_name", "")
+            last_name = item.get("basic_information", {}).get("last_name", "")
+            username = f"{first_name} {middle_name} {last_name}".strip()
+
+            # Default values to "N/A"
+            firm_name = "N/A"
+            registration_date = "N/A"
+            address = "N/A"
+            zipcode = "N/A"
+            street = "N/A"
+
+            # Check if 'current_employments' exists and is not empty
+            if item.get("current_employments", []):
+                current_employment = item["current_employments"][0]
+                firm_name = current_employment.get("firmName", "N/A")
+                registration_date = current_employment.get(
+                    "registrationBeginDate", "N/A")
+
+                # Check if 'branchOfficeLocations' exists and is not empty
+                if current_employment.get("branchOfficeLocations", []):
+                    branch_location = current_employment["branchOfficeLocations"][0]
+                    city = branch_location.get("city", "N/A")
+                    state = branch_location.get("state", "N/A")
+                    country = branch_location.get("country", "N/A")
+                    zipcode = branch_location.get("zipCode", "N/A")
+                    street = branch_location.get("street1", "N/A")
+                    address = f"{city}, {state}, {country}"
+
+            # Create the item to append
+            item_1 = {
+                "username": username,
+                "firm_info": {
+                    "firm": firm_name,
+                    "registrationDate": registration_date,
+                    "address": address,
+                    "zipcode": zipcode,
+                    "street": street,
+                }
+            }
+
+            # Append the item to the data_return list
+            data_return.append(item_1)
+
+        except KeyError as e:
+            print(f"KeyError: {e} - check data structure")
+        except Exception as e:
+            print(f"Unexpected error: {e}")
+
+    # return jsonify(res.json()["items"] or [])
+    return jsonify(data_return or [])
+
+
+@app.route("/firm-check", methods=["GET"])
+def firmCheck():
+    query = request.args.get("query") or ""
+    page = request.args.get("page") or 0
+    page = int(page)
+    crawl_args = json.dumps({
+        "query": query,
+        "page": (page * 12)
+    })
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name=finra_firm&crawl_args={crawl_args}')
+
+    items = res.json()["items"]
+    return_items = []
+
+    for data in items:
+        firm_name = data['basicInformation']['firmName']
+        print(f"Firm Name: {firm_name}")
+
+        # 2. Other Names
+        other_names = data['basicInformation']['otherNames']
+        print(f"Other Names: {', '.join(other_names)}")
+
+        # 3. Registration Status
+        if data["registrationStatus"]:
+            # assuming one entry
+            registration_status = data['registrationStatus'][0]
+            # assuming one entry
+            registration_status = data['registrationStatus'][0]
+        status_date = registration_status['effectiveDate'] or "N/A"
+        status = registration_status['status'] or "N/A"
+        # print(f"Registration Status: {status} as of {status_date}")
+
+        # 4. Firm Address
+        if 'iaFirmAddressDetails' in data and 'officeAddress' in data['iaFirmAddressDetails']:
+            address = data['iaFirmAddressDetails']['officeAddress']
+            city = address['city']
+            state = address['state']
+            country = address['country']
+
+        it = {
+            "firm_name": firm_name,
+            "other_names": other_names,
+            "status": status,
+            "status_date": status_date,
+            "city": city,
+            "state": state,
+            "country": country
+        }
+        return_items.append(it)
+
+    print(f"Return Items: {return_items}")
+    return jsonify(return_items or [])
+    # return jsonify(res.json()["items"] or [])
+
+
+@app.route("/sp500", methods=["GET"])
+def sp500():
+    sp500Processor = SP500Processor(
+        f'mongodb://{os.getenv("MONGODB_INITDB_ROOT_USERNAME")}:{os.getenv("MONGODB_INITDB_ROOT_PASSWORD")}@localhost:27017/?directConnection=true', "aw", "sp500")
+    sp500Processor.dropCollection()
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name=sp500')
+    return jsonify(res.json()["items"] or [])
+
+
+@app.route("/linkedin/getProfile", methods=["GET"])
+def getProfile() -> dict:
+    """
+    Returns the LinkedIn profile of a user that matches the given informations.
+
+    Example of successful response:
+        ``` json
+        {
+            status: 200,
+            data = [
+                0:{
+                    fullName:"Max Lopez"
+                    headline:"Retired!! Ex Network Engineer"
+                    summary:""
+                    profilePicture:""
+                    location:"Miami, FL"
+                    profileURL:"https://www.linkedin.com/in/max-lopez-7605972"
+                    username:"max-lopez-7605972"
+                },
+                1:{
+                    fullName:"Max Lopez"
+                    headline:"Retired!! Ex Network Engineer"
+                    summary:""
+                    profilePicture:""
+                    location:"Miami, FL"
+                    profileURL:"https://www.linkedin.com/in/max-lopez-7605972"
+                    username:"max-lopez-7605972"
+                },
+                ......
+            ]
+        }
+        ```
+
+    Example of a bad response:
+        ``` json
+            {
+                // Status code of the response, in this case 404, not found.
+                "status": 404,
+                "data": []
+            }
+        ```
+
+    ### Params:
+        - Username: The username of the user to search for.
+        - Location: The location of the user. (OPTIONAL)
+        - Company: The company the user works for. (OPTIONAL)
+        - Title: The title of the user. (OPTIONAL)
+
+
+    ### Returns:
+        - The LinkedIn profile of the user.
+    """
+    keyword = request.args.get('keyword')
+    location = request.args.get('location') or None
+    company = request.args.get('company') or None
+    title = request.args.get('title') or None
+    fname = request.args.get('fname') or None
+    lname = request.args.get('lname') or None
+
+    urn = geo_urn.get(location, None)
+    headers = {
+        # "x-rapidapi-host": "linkedin-data-api.p.rapidapi.com",
+        # "x-rapidapi-key": "47b001d0bamsh070b5f49739e224p11df38jsn45b0cac3cd62"
+        "x-rapidapi-host": os.getenv("LINKEDIN_HOST"),
+        "x-rapidapi-key": os.getenv("LINKEDIN_API")
+    }
+
+    additional_params = f"&company={company}" if company is not None else ''
+    additional_params += f"&geourn={urn}" if urn is not None else ''
+    additional_params += f"&keywordTitle={title}" if title is not None else ''
+    additional_params += f"&firstName={fname}" if fname is not None else ''
+    additional_params += f"&lastName={lname}" if lname is not None else ''
+
+    res = requests.get(
+        f'https://linkedin-data-api.p.rapidapi.com/search-people?keyword={keyword}{additional_params}', headers=headers)
+
+    data = res.json()
+    print(data)
+
+    # if the status is 200, then the data was fetch successfully, else the get request was unsuccessful
+    response = {
+        "status": res.status_code,
+        "data": data["data"]["items"] if data["success"] is True else []
+    }
+
+    return jsonify(response)
+
+
+@app.route("/linkedin/searchCompany", methods=["GET"])
+def searchCompany():
+    keyword = request.args.get('keyword') or ""
+    start = int(request.args.get('start') or 1)
+
+    payload = {
+        "keyword": keyword,
+        "locations": [],
+        "companySizes": [],
+        "hasJobs": True,
+        "industries": [],
+        "page": start
+    }
+
+    headers = {
+        "x-rapidapi-host": os.getenv("LINKEDIN_HOST"),
+        "x-rapidapi-key": os.getenv("LINKEDIN_API"),
+        "Content-Type": "application/json"
+    }
+
+    response = requests.post(
+        f'https://{os.getenv("LINKEDIN_HOST")}/companies/search', json=payload, headers=headers)
+
+    return jsonify(response.json()['data']['items'])
+
+
+
+@app.route("/yfinance/getBalanceSheet", methods=["GET"])
+def getBalanceSheet():
+
+    ticker = request.args.get('ticker') or 'AAPL'
+    freq = request.args.get('freq') or 'quarterly'
+
+    stock = yf.Ticker(ticker)
+
+    res = stock.get_balance_sheet(proxy=None, as_dict=True, freq=freq)
+
+    res_str_keys ={str(key): value for key, value in res.items()}
+
+    return jsonify(res_str_keys)
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

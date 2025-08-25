@@ -1,0 +1,1315 @@
+"""
+Dashboard API endpoints for AckersWeldon
+Provides real data from database instead of mock data
+"""
+
+import os
+import sys
+from pathlib import Path
+
+# Add the root directory to Python path to access the consolidated .env
+root_dir = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(root_dir))
+
+# Load environment variables from the root .env file in user's home directory
+from dotenv import load_dotenv
+load_dotenv('/home/ubuntu/.env')
+
+import logging
+import requests
+from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+from pymongo import MongoClient
+from bson import ObjectId
+import json
+from datetime import datetime, timedelta
+from services.news_fetcher import NewsFetcherService
+from services.ai_proxy import AIProxyService
+from flask import Response
+import yfinance as yf
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+app = Flask(__name__)
+CORS(app)
+
+# Custom JSON encoder to handle ObjectId
+class CustomJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+app.json_encoder = CustomJSONEncoder
+
+# MongoDB connection
+MONGO_URI = os.getenv('MONGO_URI', 'mongodb://localhost:27017/')
+try:
+    client = MongoClient(MONGO_URI)
+    db = client['dashboard_db']
+    # Test connection
+    client.admin.command('ping')
+    print("MongoDB connected successfully")
+except Exception as e:
+    print(f"MongoDB connection failed: {e}")
+    # Fallback to local connection without auth
+    client = MongoClient('mongodb://localhost:27017/')
+    db = client['dashboard_db']
+    print("Using fallback MongoDB connection")
+
+# Initialize AI proxy
+ai_proxy = AIProxyService()
+
+# Initialize News Fetcher
+news_fetcher = NewsFetcherService()
+
+# News Deduplication Module
+class NewsDeduplicator:
+    def __init__(self, db):
+        self.db = db
+        self.tracking_params = {
+            "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+            "gclid", "gbraid", "wbraid", "fbclid", "mc_cid", "mc_eid", "msclkid"
+        }
+    
+    def canonicalize_url(self, raw_url):
+        """Port of frontend canonicalizeUrl function"""
+        if not raw_url:
+            return None
+        try:
+            from urllib.parse import urlparse, parse_qs
+            parsed = urlparse(raw_url)
+            host = parsed.hostname.lower().replace("www.", "") if parsed.hostname else ""
+            
+            # Remove tracking parameters
+            query_params = parse_qs(parsed.query)
+            clean_params = {k: v for k, v in query_params.items() 
+                          if k.lower() not in self.tracking_params}
+            
+            # Clean pathname
+            import re
+            pathname = re.sub(r'/+', '/', parsed.path)
+            if pathname != "/" and pathname.endswith("/"):
+                pathname = pathname[:-1]
+            
+            # Rebuild URL
+            clean_query = "&".join([f"{k}={v[0]}" for k, v in clean_params.items()])
+            return f"{parsed.scheme}://{host}{pathname}{'?' + clean_query if clean_query else ''}"
+        except:
+            return None
+    
+    def normalize_title(self, raw_title, source_name=None):
+        """Port of frontend normalizeTitle function"""
+        import re
+        title = raw_title.lower().strip()
+        if source_name:
+            source_clean = re.sub(r'[^\w\s]', '', source_name.lower().strip())
+            title = re.sub(rf'\s*(\||-|—|–)\s*{source_clean}$', '', title)
+        
+        # Remove special characters, normalize whitespace
+        title = re.sub(r'[^\w\s]', ' ', title)
+        title = re.sub(r'\s+', ' ', title).strip()
+        return title
+    
+    def parse_date(self, date_value):
+        """Parse date and return timestamp"""
+        if not date_value:
+            return 0
+        if isinstance(date_value, datetime):
+            return int(date_value.timestamp() * 1000)
+        try:
+            if isinstance(date_value, str):
+                dt = datetime.fromisoformat(date_value.replace('Z', '+00:00'))
+                return int(dt.timestamp() * 1000)
+            return int(date_value)
+        except:
+            return 0
+    
+    def choose_better_article(self, article_a, article_b):
+        """Port of frontend chooseBetter function"""
+        # Compare publication dates
+        date_a = self.parse_date(article_a.get('published_at'))
+        date_b = self.parse_date(article_b.get('published_at'))
+        
+        if date_a != date_b:
+            return article_a if date_a > date_b else article_b
+        
+        # Score based on available fields
+        def score(article):
+            return sum([
+                1 if article.get('summary') else 0,
+                1 if article.get('sentiment') else 0,
+                1 if article.get('category') else 0
+            ])
+        
+        score_a, score_b = score(article_a), score(article_b)
+        if score_a != score_b:
+            return article_a if score_a > score_b else article_b
+        
+        # Compare URL lengths
+        url_a = self.canonicalize_url(article_a.get('url')) or ""
+        url_b = self.canonicalize_url(article_b.get('url')) or ""
+        if url_a and url_b and url_a != url_b:
+            return article_a if len(url_a) <= len(url_b) else article_b
+        
+        return article_a
+    
+    def deduplicate_before_insert(self, new_articles, title_window_hours=48):
+        """Main deduplication pipeline - port of frontend dedupeArticles function"""
+        window_ms = max(1, title_window_hours) * 3600 * 1000
+        
+        # Stage 1: URL-level deduplication using MongoDB
+        url_deduped = []
+        for article in new_articles:
+            canonical_url = self.canonicalize_url(article.get('url'))
+            if not canonical_url:
+                url_deduped.append(article)
+                continue
+            
+            # Check for exact URL duplicates in database
+            existing = self.db.news_metadata.find_one({"canonical_url": canonical_url})
+            if existing:
+                # Choose better article and update if new one is better
+                better = self.choose_better_article(existing, article)
+                if better == article:
+                    self.db.news_metadata.update_one(
+                        {"_id": existing["_id"]}, 
+                        {"$set": article}
+                    )
+                # Skip insertion of new article
+                continue
+            else:
+                # Add canonical_url field for future deduplication
+                article['canonical_url'] = canonical_url
+                url_deduped.append(article)
+        
+        # Stage 2: Title+window deduplication using MongoDB aggregation
+        title_deduped = []
+        for article in url_deduped:
+            normalized_title = self.normalize_title(
+                article.get('title'), 
+                article.get('source')
+            )
+            if not normalized_title:
+                title_deduped.append(article)
+                continue
+            
+            # Use MongoDB aggregation to find similar titles within time window
+            pub_date = self.parse_date(article.get('published_at'))
+            if not pub_date:
+                title_deduped.append(article)
+                continue
+            
+            time_start = datetime.fromtimestamp((pub_date - window_ms) / 1000)
+            time_end = datetime.fromtimestamp((pub_date + window_ms) / 1000)
+            
+            # Find articles with similar titles in time window
+            similar_articles = list(self.db.news_metadata.aggregate([
+                {
+                    "$match": {
+                        "normalized_title": normalized_title,
+                        "published_at": {"$gte": time_start, "$lte": time_end}
+                    }
+                },
+                {"$sort": {"published_at": -1}}
+            ]))
+            
+            if similar_articles:
+                # Choose better article
+                best_existing = similar_articles[0]
+                better = self.choose_better_article(best_existing, article)
+                if better == article:
+                    # Update existing with better article
+                    self.db.news_metadata.update_one(
+                        {"_id": best_existing["_id"]}, 
+                        {"$set": article}
+                    )
+                # Skip insertion
+                continue
+            else:
+                # Add normalized_title field for future deduplication
+                article['normalized_title'] = normalized_title
+                title_deduped.append(article)
+        
+        return title_deduped
+
+# Initialize deduplicator
+news_deduplicator = NewsDeduplicator(db)
+
+def create_deduplication_indexes():
+    """Create indexes for efficient deduplication"""
+    try:
+        # Unique index on canonical URL to prevent exact duplicates
+        db.news_metadata.create_index(
+            [("canonical_url", 1)], 
+            unique=True, 
+            sparse=True,
+            name="canonical_url_unique"
+        )
+        print("✓ Created canonical_url_unique index")
+    except Exception as e:
+        print(f"⚠️  canonical_url_unique index error: {e}")
+    
+    try:
+        # Compound index for title+time deduplication
+        db.news_metadata.create_index(
+            [("normalized_title", 1), ("published_at", 1)],
+            name="title_time_dedup"
+        )
+        print("✓ Created title_time_dedup index")
+    except Exception as e:
+        print(f"⚠️  title_time_dedup index error: {e}")
+    
+    try:
+        # TTL index for automatic cleanup (90 days)
+        db.news_metadata.create_index(
+            [("fetched_at", 1)], 
+            expireAfterSeconds=7776000,
+            name="fetched_at_ttl"
+        )
+        print("✓ Created fetched_at_ttl index")
+    except Exception as e:
+        print(f"⚠️  fetched_at_ttl index error: {e}")
+
+# Create indexes on startup
+create_deduplication_indexes()
+
+# AI Status endpoint
+@app.route('/api/ai/status', methods=['GET'])
+def get_ai_status():
+    """Get AI service status"""
+    try:
+        # Check if Ollama server is accessible
+        ollama_url = os.getenv('OLLAMA_BASE_URL', 'http://3.80.91.238:11434')
+        response = requests.get(f"{ollama_url}/api/tags", timeout=5)
+        
+        if response.status_code == 200:
+            return jsonify({
+                'status': 'AI services available',
+                'ollama_available': True,
+                'ollama_url': ollama_url,
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'status': 'AI services partially available',
+                'ollama_available': False,
+                'ollama_url': ollama_url,
+                'timestamp': datetime.now().isoformat()
+            })
+    except Exception as e:
+        return jsonify({
+            'status': 'AI services unavailable',
+            'ollama_available': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+# Trigger fresh news fetch endpoint
+@app.route('/api/news/fetch-fresh', methods=['POST'])
+def trigger_fresh_news_fetch():
+    """Trigger fresh news fetch from all sources"""
+    try:
+        # Import the news fetcher service
+        from services.news_fetcher import NewsFetcherService
+        
+        # Create a news fetcher instance using the existing database connection
+        news_fetcher = NewsFetcherService()
+        # Override the database connection to use the existing one
+        news_fetcher.db = db
+        
+        # Fetch fresh news from all sources
+        stored_count = news_fetcher.fetch_all_news()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully fetched and stored {stored_count} new news items',
+            'stored_count': stored_count,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
+
+# Trigger news fetch endpoint
+@app.route('/api/trigger-news-fetch', methods=['POST'])
+def trigger_news_fetch():
+    """Trigger news fetching from all sources"""
+    try:
+        logger.info("News fetch triggered via API")
+        
+        # Import and initialize news fetcher
+        from services.news_fetcher import NewsFetcherService
+        news_fetcher = NewsFetcherService()
+        
+        # Fetch news from all sources in background
+        def fetch_news_background():
+            try:
+                logger.info("Starting background news fetch...")
+                stored_count = news_fetcher.fetch_all_news()
+                logger.info(f"Background news fetch completed: {stored_count} articles stored")
+            except Exception as e:
+                logger.error(f"Background news fetch failed: {e}")
+        
+        # Start background thread for news fetching
+        import threading
+        fetch_thread = threading.Thread(target=fetch_news_background)
+        fetch_thread.daemon = True
+        fetch_thread.start()
+        
+        return jsonify({
+            'success': True,
+            'message': 'News fetch triggered successfully',
+            'status': 'fetching_in_background'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error triggering news fetch: {e}")
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        }), 500
+
+# Register blueprints
+from api.routes.search import bp as search_bp
+app.register_blueprint(search_bp)
+
+@app.route('/')
+def index():
+    """Serve the main comprehensive dashboard page"""
+    return render_template('index.html')
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat()
+    })
+
+# Enhanced News API with multiple sources
+@app.route('/api/news', methods=['GET'])
+def get_news():
+    """Get news from the enhanced news_metadata collection with pagination"""
+    try:
+        # Get pagination parameters
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 500))
+        # Also accept 'limit' parameter for backward compatibility
+        if request.args.get('limit'):
+            per_page = int(request.args.get('limit'))
+        
+        # Handle both 'source' (backward compatibility) and 'sources' (new multiple sources)
+        source = request.args.get('source')
+        sources = request.args.get('sources', '').split(',') if request.args.get('sources') else []
+        search_query = request.args.get('q', '')
+        category = request.args.get('category')
+        
+        # Calculate skip for pagination
+        skip = (page - 1) * per_page
+        
+        # Build query for news_metadata collection
+        query = {}
+        
+        # Handle source filtering - prioritize 'sources' over 'source'
+        if sources and 'all' not in sources:
+            # Multiple sources filtering
+            query['api_source'] = {'$in': sources}
+        elif source and source != 'all':
+            # Single source filtering (backward compatibility)
+            query['api_source'] = source
+            
+        if category:
+            query['category'] = category
+        if search_query:
+            query['$or'] = [
+                {'title': {'$regex': search_query, '$options': 'i'}},
+                {'summary': {'$regex': search_query, '$options': 'i'}}
+            ]
+        
+        # Get total count for pagination info
+        total_count = db.news_metadata.count_documents(query)
+        
+        # Calculate total pages
+        total_pages = (total_count + per_page - 1) // per_page
+        
+        # Query the news_metadata collection with pagination
+        news_cursor = db.news_metadata.find(query).sort('published_at', -1).skip(skip).limit(per_page)
+        articles = list(news_cursor)
+        
+        # Process each article
+        processed_articles = []
+        for article in articles:
+            # Convert ObjectId to string
+            article['_id'] = str(article['_id'])
+            
+            # Ensure we have all required fields
+            processed_article = {
+                '_id': article['_id'],
+                'title': article.get('title', ''),
+                'summary': article.get('summary', ''),
+                'url': article.get('url', ''),
+                'source': article.get('source', ''),
+                'category': article.get('category', ''),
+                'published_at': article.get('published_at', ''),
+                'api_source': article.get('api_source', ''),
+                'sentiment_score': article.get('sentiment_score', 0),
+                'sentiment_label': article.get('sentiment_label', ''),
+                'relevance_score': article.get('relevance_score', 0),
+                'topic': article.get('topic', ''),
+                'fetched_at': article.get('fetched_at', ''),
+                'unique_id': article.get('unique_id', '')
+            }
+            processed_articles.append(processed_article)
+        
+        # Get available sources and categories for filtering
+        available_sources = list(db.news_metadata.distinct('api_source')) if db.news_metadata.count_documents({}) > 0 else []
+        available_categories = list(db.news_metadata.distinct('category')) if db.news_metadata.count_documents({}) > 0 else []
+        
+        return jsonify({
+            'success': True,
+            'data': processed_articles,
+            'count': len(processed_articles),
+            'total_available': total_count,
+            'total_pages': total_pages,
+            'current_page': page,
+            'per_page': per_page,
+            'has_next': page < total_pages,
+            'has_prev': page > 1,
+            'sources': available_sources,
+            'categories': available_categories,
+            'collection': 'news_metadata'  # Debug info
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'collection': 'news_metadata'  # Debug info
+        }), 500
+
+# Web Search API endpoint (fallback if blueprint fails)
+@app.route('/api/search/web', methods=['GET'])
+def web_search_fallback():
+    try:
+        import requests
+        
+        q = request.args.get('q', '').strip()
+        if not q:
+            return jsonify({"error": "missing query param q"}), 400
+            
+        # Use SearXNG for web search
+        searx_url = os.getenv("SEARX_BASE_URL", "http://localhost:8081")
+        
+        r = requests.get(f"{searx_url.rstrip('/')}/search",
+                         params={"q": q, "format": "json"}, timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        
+        # Format results for dashboard
+        formatted_results = []
+        if 'results' in data:
+            for result in data['results']:
+                formatted_results.append({
+                    'title': result.get('title', ''),
+                    'url': result.get('url', ''),
+                    'description': result.get('content', ''),
+                    'source': result.get('engines', []),
+                    'published_date': result.get('publishedDate', ''),
+                    'score': result.get('score', 0)
+                })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'query': q,
+                'results': formatted_results,
+                'total_results': len(formatted_results),
+                'search_metadata': {
+                    'query_time': data.get('query_time', 0),
+                    'total_results_estimate': data.get('number_of_results', 0)
+                }
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+# Real-time News API with multiple sources
+@app.route('/api/news/realtime', methods=['GET'])
+def get_realtime_news():
+    try:
+        import requests
+        
+        query = request.args.get('q', '')
+        source = request.args.get('source', 'all')
+        limit = int(request.args.get('limit', 20))
+        
+        news_results = []
+        
+        # Financial News API (Alpha Vantage)
+        if source in ['all', 'financial']:
+            try:
+                alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
+                if alpha_vantage_key and query:
+                    url = f"https://www.alphavantage.co/query"
+                    params = {
+                        'function': 'NEWS_SENTIMENT',
+                        'tickers': query.upper() if query else 'FOREX',
+                        'apikey': alpha_vantage_key,
+                        'limit': limit
+                    }
+                    
+                    response = requests.get(url, params=params, timeout=10)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if 'feed' in data:
+                            for article in data['feed'][:limit//2]:
+                                news_results.append({
+                                    'title': article.get('title', ''),
+                                    'summary': article.get('summary', ''),
+                                    'source': article.get('source', 'Alpha Vantage'),
+                                    'publishedAt': article.get('time_published', ''),
+                                    'url': article.get('url', ''),
+                                    'score': article.get('overall_sentiment_score', 0),
+                                    'category': 'financial'
+                                })
+            except Exception as e:
+                print(f"Alpha Vantage API error: {e}")
+        
+        # Web Search News (SearXNG)
+        if source in ['all', 'web'] and query:
+            try:
+                searx_url = os.getenv("SEARX_BASE_URL", "http://localhost:8081")
+                r = requests.get(f"{searx_url.rstrip('/')}/search",
+                               params={"q": f"{query} news", "format": "json", "categories": "news"}, 
+                               timeout=15)
+                if r.status_code == 200:
+                    data = r.json()
+                    if 'results' in data:
+                        for result in data['results'][:limit//2]:
+                            news_results.append({
+                                'title': result.get('title', ''),
+                                'summary': result.get('content', ''),
+                                'source': result.get('engines', ['Web Search'])[0],
+                                'publishedAt': result.get('publishedDate', ''),
+                                'url': result.get('url', ''),
+                                'score': result.get('score', 0),
+                                'category': 'web'
+                            })
+            except Exception as e:
+                print(f"SearXNG API error: {e}")
+        
+        # Database News (if available)
+        if source in ['all', 'database']:
+            try:
+                db_query = {}
+                if query:
+                    db_query['$or'] = [
+                        {'title': {'$regex': query, '$options': 'i'}},
+                        {'content': {'$regex': query, '$options': 'i'}},
+                        {'summary': {'$regex': query, '$options': 'i'}}
+                    ]
+                
+                db_articles = list(db.news_metadata.find(db_query).sort('published_at', -1).limit(limit//3))
+                for article in db_articles:
+                    article['_id'] = str(article['_id'])
+                    article['category'] = article.get('category', 'database')
+                    news_results.append(article)
+            except Exception as e:
+                print(f"Database query error: {e}")
+        
+        # Sort by published date and limit results
+        news_results.sort(key=lambda x: x.get('publishedAt', ''), reverse=True)
+        news_results = news_results[:limit]
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'query': query,
+                'results': news_results,
+                'total_results': len(news_results),
+                'sources': list(set([item.get('category', 'unknown') for item in news_results]))
+            }
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# News Management Endpoints
+@app.route('/api/news/fetch', methods=['POST'])
+def fetch_all_news():
+    """Trigger news fetch from all sources"""
+    try:
+        stored_count = news_fetcher.fetch_all_news()
+        return jsonify({
+            'success': True,
+            'message': f'Successfully fetched and stored {stored_count} news items',
+            'stored_count': stored_count
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/news/latest', methods=['GET'])
+def get_latest_news():
+    """Get latest news from database"""
+    try:
+        limit = int(request.args.get('limit', 500))
+        category = request.args.get('category')
+        source = request.args.get('source')
+        
+        news_list = news_fetcher.get_latest_news(limit, category, source)
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'news': news_list,
+                'count': len(news_list),
+                'total_available': len(news_list)
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/news/categories', methods=['GET'])
+def get_news_categories():
+    """Get available news categories and counts"""
+    try:
+        pipeline = [
+            {'$group': {
+                '_id': '$category',
+                'count': {'$sum': 1},
+                'latest': {'$max': '$published_at'}
+            }},
+            {'$sort': {'count': -1}}
+        ]
+        
+        categories = list(db.news_metadata.aggregate(pipeline))
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'categories': categories,
+                'total_categories': len(categories)
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/news/sources', methods=['GET'])
+def get_news_sources():
+    """Get available news sources and counts"""
+    try:
+        pipeline = [
+            {'$group': {
+                '_id': '$api_source',
+                'count': {'$sum': 1},
+                'latest': {'$max': '$fetched_at'}
+            }},
+            {'$sort': {'count': -1}}
+        ]
+        
+        sources = list(db.news_metadata.aggregate(pipeline))
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'sources': sources,
+                'total_sources': len(sources)
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/news/deduplication-test', methods=['POST'])
+def test_deduplication():
+    """Test the deduplication logic with sample data"""
+    try:
+        # Sample test articles
+        test_articles = [
+            {
+                'title': 'Test Article 1',
+                'summary': 'This is a test article',
+                'source': 'Test Source',
+                'published_at': datetime.now().isoformat(),
+                'url': 'https://example.com/article1',
+                'category': 'test',
+                'api_source': 'test'
+            },
+            {
+                'title': 'Test Article 1',  # Duplicate title
+                'summary': 'This is a test article with different content',
+                'source': 'Test Source',
+                'published_at': datetime.now().isoformat(),
+                'url': 'https://example.com/article2',
+                'category': 'test',
+                'api_source': 'test'
+            }
+        ]
+        
+        # Apply deduplication
+        unique_articles = news_deduplicator.deduplicate_before_insert(
+            test_articles, 
+            title_window_hours=48
+        )
+        
+        return jsonify({
+            'success': True,
+            'test_data': {
+                'total_received': len(test_articles),
+                'unique_after_dedup': len(unique_articles),
+                'duplicates_filtered': len(test_articles) - len(unique_articles),
+                'deduplication_ratio': f"{((len(test_articles) - len(unique_articles)) / len(test_articles) * 100):.1f}%"
+            },
+            'message': 'Deduplication test completed successfully'
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/companies/search', methods=['GET'])
+def search_companies():
+    try:
+        query = request.args.get('q', '')
+        if not query:
+            return jsonify({'success': False, 'error': 'Query parameter required'}), 400
+            
+        companies = list(db.companies.find({
+            '$or': [
+                {'symbol': {'$regex': query, '$options': 'i'}},
+                {'name': {'$regex': query, '$options': 'i'}}
+            ]
+        }).limit(10))
+        
+        # Convert ObjectIds to strings
+        for company in companies:
+            company['_id'] = str(company['_id'])
+        
+        return jsonify({
+            'success': True,
+            'data': companies,
+            'count': len(companies)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/companies/<symbol>/quote', methods=['GET'])
+def get_company_quote(symbol):
+    try:
+        company = db.companies.find_one({'symbol': symbol.upper()})
+        if not company:
+            return jsonify({'success': False, 'error': 'Company not found'}), 404
+            
+        # Convert ObjectId to string
+        company['_id'] = str(company['_id'])
+        
+        return jsonify({
+            'success': True,
+            'data': company
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/companies/<symbol>/financials', methods=['GET'])
+def get_company_financials(symbol):
+    try:
+        statements = request.args.get('statements', 'BS,IS,CF').split(',')
+        freq = request.args.get('freq', 'annual')
+        
+        company = db.companies.find_one({'symbol': symbol.upper()})
+        if not company:
+            return jsonify({'success': False, 'error': 'Company not found'}), 404
+            
+        financials = list(db.financials.find({
+            'company_id': company['_id'],
+            'type': {'$in': statements},
+            'frequency': freq
+        }).sort('period', -1).limit(20))
+        
+        # Convert ObjectIds to strings
+        for fin in financials:
+            fin['_id'] = str(fin['_id'])
+            fin['company_id'] = str(fin['company_id'])
+        
+        return jsonify({
+            'success': True,
+            'data': financials,
+            'count': len(financials)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/social', methods=['GET'])
+def get_social_posts():
+    try:
+        handles = request.args.get('handles', '').split(',')
+        limit = int(request.args.get('limit', 20))
+        
+        query = {}
+        if handles and handles[0]:
+            query['handle'] = {'$in': handles}
+            
+        posts = list(db.social_posts.find(query).sort('posted_at', -1).limit(limit))
+        
+        # Convert ObjectIds to strings
+        for post in posts:
+            post['_id'] = str(post['_id'])
+        
+        return jsonify({
+            'success': True,
+            'data': posts,
+            'count': len(posts)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/kyc', methods=['GET'])
+def get_kyc_results():
+    try:
+        query = request.args.get('query', '')
+        if not query:
+            return jsonify({'success': False, 'error': 'Query parameter required'}), 400
+            
+        results = list(db.kyc_results.find({'query': {'$regex': query, '$options': 'i'}}).limit(10))
+        
+        # Convert ObjectIds to strings
+        for result in results:
+            result['_id'] = str(result['_id'])
+        
+        return jsonify({
+            'success': True,
+            'data': results,
+            'count': len(results)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# AI Chat endpoint
+@app.route('/api/ai/chat', methods=['POST'])
+def ai_chat():
+    """Chat with AI assistant"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '')
+        context = data.get('context', '')
+        model = data.get('model', 'llama3.2:3b')
+        
+        if not message:
+            return jsonify({'success': False, 'message': 'Message is required'})
+        
+        # Use the AI service
+        response = news_fetcher.ai_service.chat(
+            messages=[{"role": "user", "content": message}],
+            model=model
+        )
+        
+        if 'error' in response:
+            return jsonify({'success': False, 'message': response['error']})
+        
+        return jsonify({
+            'success': True,
+            'response': response.get('message', {}).get('content', 'No response generated'),
+            'model': model
+        })
+        
+    except Exception as e:
+        logger.error(f"AI chat error: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+# AI Summarization endpoint
+@app.route('/api/ai/summarize', methods=['POST'])
+def ai_summarize():
+    """Summarize text using AI with database caching"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        tone = data.get('tone', 'neutral')
+        model = data.get('model', 'llama3.2:3b')
+        article_id = data.get('article_id', '')  # Optional article ID for caching
+        
+        if not text:
+            return jsonify({'success': False, 'message': 'Text is required'})
+        
+        # Check database cache first if article_id is provided
+        if article_id:
+            try:
+                cached_result = db.news_metadata.find_one(
+                    {'_id': ObjectId(article_id)},
+                    {'ai_summary': 1, 'ai_summary_tone': 1, 'ai_summary_model': 1, 'ai_summary_created_at': 1}
+                )
+                
+                if cached_result and cached_result.get('ai_summary'):
+                    logger.info(f"Returning cached AI summary for article {article_id}")
+                    return jsonify({
+                        'success': True,
+                        'summary': cached_result['ai_summary'],
+                        'tone': cached_result.get('ai_summary_tone', tone),
+                        'model': cached_result.get('ai_summary_model', model),
+                        'cached': True,
+                        'cached_at': cached_result.get('ai_summary_created_at')
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to check cache for article {article_id}: {e}")
+        
+        # Use the AI service
+        result = news_fetcher.ai_service.summarize(text, tone, model)
+        
+        if 'error' in result:
+            return jsonify({'success': False, 'message': result['error']})
+        
+        # Cache the result in database if article_id is provided
+        if article_id:
+            try:
+                db.news_metadata.update_one(
+                    {'_id': ObjectId(article_id)},
+                    {
+                        '$set': {
+                            'ai_summary': result['summary'],
+                            'ai_summary_tone': result.get('tone', tone),
+                            'ai_summary_model': model,
+                            'ai_summary_created_at': datetime.now().isoformat()
+                        }
+                    }
+                )
+                logger.info(f"Cached AI summary for article {article_id}")
+            except Exception as e:
+                logger.warning(f"Failed to cache AI summary for article {article_id}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'summary': result['summary'],
+            'tone': result['tone'],
+            'model': result['model'],
+            'cached': False
+        })
+        
+    except Exception as e:
+        logger.error(f"AI summarize error: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+# AI Entity Extraction endpoint
+@app.route('/api/ai/extract', methods=['POST'])
+def ai_extract():
+    """Extract entities from text using AI with database caching"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        model = data.get('model', 'llama3.2:3b')
+        article_id = data.get('article_id', '')  # Optional article ID for caching
+        
+        if not text:
+            return jsonify({'success': False, 'message': 'Text is required'})
+        
+        # Check database cache first if article_id is provided
+        if article_id:
+            try:
+                cached_result = db.news_metadata.find_one(
+                    {'_id': ObjectId(article_id)},
+                    {'ai_entities': 1, 'ai_entities_confidence': 1, 'ai_entities_model': 1, 'ai_entities_created_at': 1}
+                )
+                
+                if cached_result and cached_result.get('ai_entities'):
+                    logger.info(f"Returning cached AI entities for article {article_id}")
+                    return jsonify({
+                        'success': True,
+                        'entities': cached_result['ai_entities'],
+                        'confidence': cached_result.get('ai_entities_confidence', 0.8),
+                        'model': cached_result.get('ai_entities_model', model),
+                        'cached': True,
+                        'cached_at': cached_result.get('ai_entities_created_at')
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to check cache for article {article_id}: {e}")
+        
+        # Use the AI service
+        result = news_fetcher.ai_service.extract_entities(text, model)
+        
+        if 'error' in result:
+            return jsonify({'success': False, 'message': result['error']})
+        
+        # Cache the result in database if article_id is provided
+        if article_id:
+            try:
+                db.news_metadata.update_one(
+                    {'_id': ObjectId(article_id)},
+                    {
+                        '$set': {
+                            'ai_entities': result['entities'],
+                            'ai_entities_confidence': result.get('confidence', 0.8),
+                            'ai_entities_model': model,
+                            'ai_entities_created_at': datetime.now().isoformat()
+                        }
+                    }
+                )
+                logger.info(f"Cached AI entities for article {article_id}")
+            except Exception as e:
+                logger.warning(f"Failed to cache AI entities for article {article_id}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'entities': result['entities'],
+            'confidence': result['confidence'],
+            'model': result['model'],
+            'cached': False
+        })
+        
+    except Exception as e:
+        logger.error(f"AI extract error: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+# AI Sentiment Analysis endpoint
+@app.route('/api/ai/sentiment', methods=['POST'])
+def ai_sentiment():
+    """Analyze sentiment of text using AI with database caching"""
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        model = data.get('model', 'llama3.2:3b')
+        article_id = data.get('article_id', '')  # Optional article ID for caching
+        
+        if not text:
+            return jsonify({'success': False, 'message': 'Text is required'})
+        
+        # Check database cache first if article_id is provided
+        if article_id:
+            try:
+                cached_result = db.news_metadata.find_one(
+                    {'_id': ObjectId(article_id)},
+                    {'ai_sentiment': 1, 'ai_sentiment_confidence': 1, 'ai_sentiment_reasoning': 1, 'ai_sentiment_model': 1, 'ai_sentiment_created_at': 1}
+                )
+                
+                if cached_result and cached_result.get('ai_sentiment'):
+                    logger.info(f"Returning cached AI sentiment for article {article_id}")
+                    return jsonify({
+                        'success': True,
+                        'sentiment': cached_result['ai_sentiment'],
+                        'confidence': cached_result.get('ai_sentiment_confidence', 0.8),
+                        'reasoning': cached_result.get('ai_sentiment_reasoning', 'Cached analysis'),
+                        'model': cached_result.get('ai_sentiment_model', model),
+                        'cached': True,
+                        'cached_at': cached_result.get('ai_sentiment_created_at')
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to check cache for article {article_id}: {e}")
+        
+        # Use the AI service
+        result = news_fetcher.ai_service.analyze_sentiment(text, model)
+        
+        if 'error' in result:
+            return jsonify({'success': False, 'message': result['error']})
+        
+        # Cache the result in database if article_id is provided
+        if article_id:
+            try:
+                db.news_metadata.update_one(
+                    {'_id': ObjectId(article_id)},
+                    {
+                        '$set': {
+                            'ai_sentiment': result['sentiment'],
+                            'ai_sentiment_confidence': result.get('confidence', 0.8),
+                            'ai_sentiment_reasoning': result.get('reasoning', 'AI analysis completed'),
+                            'ai_sentiment_model': model,
+                            'ai_sentiment_created_at': datetime.now().isoformat()
+                        }
+                    }
+                )
+                logger.info(f"Cached AI sentiment for article {article_id}")
+            except Exception as e:
+                logger.warning(f"Failed to cache AI sentiment for article {article_id}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'sentiment': result['sentiment'],
+            'confidence': result['confidence'],
+            'reasoning': result['reasoning'],
+            'model': result['model'],
+            'cached': False
+        })
+        
+    except Exception as e:
+        logger.error(f"AI sentiment error: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+# Get available AI models
+@app.route('/api/ai/models', methods=['GET'])
+def get_ai_models():
+    """Get list of available AI models - simplified to use Llama 3.2 3B by default"""
+    return jsonify(['llama3.2:3b'])
+
+# AI Stream Chat endpoint
+@app.route('/api/ai/stream-chat', methods=['POST'])
+def ai_stream_chat():
+    """Stream chat with AI assistant"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '')
+        context = data.get('context', '')
+        model = data.get('model', 'llama3.2:3b')
+        
+        if not message:
+            return jsonify({'success': False, 'message': 'Message is required'})
+        
+        def generate():
+            try:
+                for chunk in news_fetcher.ai_service.stream_chat(message, context, model):
+                    if 'error' in chunk:
+                        yield f"data: {json.dumps({'error': chunk['error']})}\n\n"
+                    else:
+                        content = chunk.get('message', {}).get('content', '')
+                        if content:
+                            yield f"data: {json.dumps({'content': content})}\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        return Response(generate(), mimetype='text/event-stream')
+        
+    except Exception as e:
+        logger.error(f"AI stream chat error: {e}")
+        return jsonify({'success': False, 'message': str(e)})
+
+
+@app.route("/twitter/getUserId", methods=["GET"])
+def getUserId():
+    '''
+    ### Example of success response:
+    username: "Bloomberg"
+
+    ``` json
+    [
+        {
+            "_id": "34713362",
+            "user_handle": "business",
+            "user_name": "Bloomberg"
+        }
+    ]
+    ```
+    '''
+    username = request.args.get("username")
+    crawl_args = json.dumps(
+        {
+            "payload": {
+                "screen_name": username,
+                "withSafetyModeUserFields": True,
+                "withHighlightedLabel": True
+            }
+        }
+    )
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name=twitter_user_info&crawl_args={crawl_args}')
+    return jsonify(res.json()["items"] or [])
+
+
+@app.route("/twitter/getTweets", methods=["GET"])
+def getTweets():
+    '''
+    ### Example of success response:
+    user_id: "34713362"
+
+    ``` json
+    [
+        {
+            "post_id": "1234567890",
+            "user_id": "34713362",
+            "user_name": "Bloomberg",
+            "user_handle": "business",
+            "profile_img": "https://...",
+            "likes": 150,
+            "retweets": 25,
+            "reply": 10,
+            "full_text": "Tweet content...",
+            "date_posted": 1640995200,
+            "img_path": "https://...",
+            "hashtags": []
+        }
+    ]
+    ```
+    '''
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"error": "user_id parameter is required"}), 400
+    
+    crawl_args = json.dumps(
+        {
+            "payload": {
+                "userId": user_id,
+                "count": 20,
+                "includePromotedContent": False,
+                "withQuickPromoteEligibilityTweetFields": True,
+                "withVoice": True,
+                "withV2Timeline": True
+            }
+        }
+    )
+    res = requests.get(
+        f'http://localhost:9080/crawl.json?start_requests=true&spider_name=twitter_tweets&crawl_args={crawl_args}')
+    return jsonify(res.json()["items"] or [])
+
+@app.route("/yfinance/getBalanceSheet", methods=["GET"])
+def getBalanceSheet():
+    ticker = request.args.get('ticker') or 'AAPL'
+    freq = request.args.get('freq') or 'quarterly'
+
+    stock = yf.Ticker(ticker)
+
+    res = stock.get_balance_sheet(proxy=None, as_dict=True, freq=freq)
+
+    res_str_keys ={str(key): value for key, value in res.items()}
+
+    return jsonify(res_str_keys)
+
+if __name__ == '__main__':
+    port = int(os.getenv('PORT', 5001))
+    debug = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    flask_env = os.getenv('FLASK_ENV', 'development')
+    
+    print(f"Starting Dashboard API server on port {port}")
+    print(f"Environment: {flask_env}")
+    print(f"Debug mode: {debug}")
+    
+    # Force production mode if FLASK_ENV is production
+    if flask_env == 'production':
+        debug = False
+        print("Forcing production mode - debug disabled")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug)

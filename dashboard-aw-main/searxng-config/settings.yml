@@ -1,0 +1,92 @@
+general:
+  debug: false
+  instance_name: "Local SearXNG"
+  enable_metrics: false
+
+search:
+  safe_search: 0
+  autocomplete: "google"
+  default_lang: "en"
+  ban_time_on_fail: 5
+  max_ban_time_on_fail: 120
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "AmXpjE-MCh6IXQfP9su5YJ1O7m8GmjQtTmaaacO6wK8"
+  base_url: false
+  image_proxy: false
+  http_protocol_version: "1.0"
+  method: "POST"
+  default_http_headers:
+    X-Content-Type-Options: nosniff
+    X-XSS-Protection: 1; mode=block
+    X-Download-Options: noopen
+    X-Robots-Tag: noindex, nofollow
+    Referrer-Policy: no-referrer
+
+ui:
+  static_path: ""
+  templates_path: ""
+  default_theme: "simple"
+  default_locale: "en"
+  theme_args:
+    simple_theme_name: "dark"
+  infinite_scroll: false
+
+outgoing:
+  request_timeout: 3.0
+  max_request_timeout: 15.0
+  pool_connections: 100
+  pool_maxsize: 100
+  enable_http2: true
+  verify: true
+  max_redirects: 5
+  retries: 1
+  proxies:
+    http: false
+    https: false
+  using_tor_proxy: false
+  local_ips:
+    - 127.0.0.1
+    - ::1
+  request_headers:
+    X-Content-Type-Options: nosniff
+    X-XSS-Protection: 1; mode=block
+    X-Download-Options: noopen
+    X-Robots-Tag: noindex, nofollow
+    Referrer-Policy: no-referrer
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    timeout: 3.0
+    disabled: false
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: ddg
+    timeout: 3.0
+    disabled: false
+
+  - name: bing
+    engine: bing
+    shortcut: b
+    timeout: 3.0
+    disabled: false
+
+  - name: yahoo
+    engine: yahoo
+    shortcut: y
+    timeout: 3.0
+    disabled: false
+
+botdetection:
+  enabled: false
+  delay: 0
+  max_request_time: 0
+  max_requests: 0
+  max_requests_time: 0
+  whitelist: []
+  blacklist: []

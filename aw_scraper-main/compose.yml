@@ -1,0 +1,31 @@
+services:
+  mongodb:    
+    hostname: mongodb
+    image: mongo:7.0
+    restart: unless-stopped
+    ports:
+      - 27017:27017
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    environment:
+      - MONGO_INITDB_DATABASE=aw
+
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - 8081:8080
+    volumes:
+      - searxng_config:/etc/searxng
+      - searxng_cache:/var/cache/searxng
+    environment:
+      - GRANIAN_BLOCKING_THREADS=4
+      - GRANIAN_WORKERS_KILL_TIMEOUT=30s
+      - GRANIAN_BLOCKING_THREADS_IDLE_TIMEOUT=5m
+
+volumes:
+  mongodb_data:
+  mongodb_config:
+  searxng_config:
+  searxng_cache:

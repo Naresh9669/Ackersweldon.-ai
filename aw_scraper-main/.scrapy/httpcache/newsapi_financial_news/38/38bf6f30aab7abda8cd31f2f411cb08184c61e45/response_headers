@@ -1,0 +1,12 @@
+Content-Length: 162
+Date: Mon, 11 Aug 2025 14:35:19 GMT
+Content-Type: application/json; charset=utf-8
+Cache-Control: no-cache
+Pragma: no-cache
+Expires: -1
+X-Cached-Result: false
+Cf-Cache-Status: DYNAMIC
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=176QK%2BBBRlC8Ix20xjpL6Knw6Dr%2FIbMyj4YKoUPMHnXTuSH%2B%2FgJeFiCEoVqQ36K%2BqOH00WbzcsqVy3D9niMGxXfyVCsp%2Btpl7Cs%3D"}]}
+Server: cloudflare
+Cf-Ray: 96d875745ade2012-IAD

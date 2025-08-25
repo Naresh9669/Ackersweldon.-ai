@@ -1,0 +1,29 @@
+[Unit]
+Description=AI Dashboard Frontend
+After=network.target
+Requires=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/aw/dashboard-aw-main
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=0.0.0.0
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ai-dashboard
+
+# Security settings
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/ubuntu/aw/dashboard-aw-main
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+[Unit]
+Description=Run MongoDB backup daily at 2:00 AM
+Requires=mongodb-backup.service
+
+[Timer]
+# Run daily at 2:00 AM
+OnCalendar=*-*-* 02:00:00
+# Run 5 minutes after boot if missed
+Persistent=true
+# Add random delay up to 30 minutes to avoid system load spikes
+RandomizedDelaySec=1800
+
+[Install]
+WantedBy=timers.target

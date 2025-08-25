@@ -1,0 +1,1 @@
+{'url': 'https://newsapi.org/v2/everything?q=finance&language=en&sortBy=publishedAt&apiKey=ce46eebf08mshc769f57541700fbp1d63b5jsn150bf1b1e5c8', 'method': 'GET', 'status': 401, 'response_url': 'https://newsapi.org/v2/everything?q=finance&language=en&sortBy=publishedAt&apiKey=ce46eebf08mshc769f57541700fbp1d63b5jsn150bf1b1e5c8', 'timestamp': 1754925309.1758974}

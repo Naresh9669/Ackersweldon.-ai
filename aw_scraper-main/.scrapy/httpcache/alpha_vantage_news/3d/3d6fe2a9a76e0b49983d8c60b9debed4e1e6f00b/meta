@@ -1,0 +1,1 @@
+{'url': 'https://alpha-vantage.p.rapidapi.com/query?function=NEWS_SENTIMENT&tickers=MSFT&apikey=ce46eebf08mshc769f57541700fbp1d63b5jsn150bf1b1e5c8', 'method': 'GET', 'status': 200, 'response_url': 'https://alpha-vantage.p.rapidapi.com/query?function=NEWS_SENTIMENT&tickers=MSFT&apikey=ce46eebf08mshc769f57541700fbp1d63b5jsn150bf1b1e5c8', 'timestamp': 1754160372.9028323}

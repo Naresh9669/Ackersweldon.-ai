@@ -1,0 +1,938 @@
+"use client"
+import { Suspense } from "react";
+import dynamicImport from 'next/dynamic';
+import { RefreshCw } from "lucide-react";
+import React from "react"; // Added missing import for React
+
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
+// Dynamic import with SSR disabled - the PROPER Next.js way
+const NewsPageContent = dynamicImport(() => Promise.resolve(NewsPageContentComponent), { 
+  ssr: false,
+  loading: () => (
+    <div className="min-h-screen bg-gray-50">
+      <div className="flex flex-col min-w-0">
+        <div className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm" />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-center py-16">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <RefreshCw className="w-10 h-10 text-blue-600 animate-spin" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">Loading News Dashboard...</h3>
+            <p className="text-lg text-gray-600">Initializing client-side components</p>
+          </div>
+        </main>
+      </div>
+    </div>
+  )
+});
+
+// Import components at the top level but use them in client-only component
+import { NavBar } from "@/components/components/NavBar";
+import { SideBar } from "@/components/components/SideBar";
+import { Search, TrendingUp, Clock, ExternalLink, Brain, MessageSquare, Tag, Zap, AlertCircle, CheckCircle } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { fetchNewsMultiSource } from "@/lib/newsService";
+import { useInfiniteScroll } from "@/lib/hooks/useInfiniteScroll";
+
+
+// Define interfaces outside component
+interface NewsArticle {
+  id: string;
+  title: string;
+  summary: string;
+  source: string;
+  publishedAt: string;
+  url: string;
+  score: number;
+  category: string;
+  sentiment?: string;
+  sentiment_score?: number;
+}
+
+interface NewsSource {
+  name: string;
+  url: string;
+  category: string;
+  priority: number;
+}
+
+// Wrapper component for NavBar to handle useSearchParams Suspense boundary
+function NavBarWrapper() {
+  return (
+    <Suspense fallback={<div className="h-16 bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm" />}>
+      <NavBar />
+    </Suspense>
+  );
+}
+
+// Error boundary component for context issues
+class SidebarErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Sidebar error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-64 bg-white border-r border-gray-200 p-4">
+          <div className="text-gray-500">Sidebar error - please refresh</div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Add error boundary for context issues
+const SidebarWrapper = () => {
+  const [isReady, setIsReady] = React.useState(false);
+  
+  React.useEffect(() => {
+    // Ensure the context is ready before rendering
+    setIsReady(true);
+  }, []);
+
+  if (!isReady) {
+    return (
+      <div className="w-64 bg-white border-r border-gray-200 p-4">
+        <div className="text-gray-500">Sidebar loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <SidebarErrorBoundary>
+      <SideBar />
+    </SidebarErrorBoundary>
+  );
+};
+
+// Client-only component - this will ONLY run on the client after hydration
+function NewsPageContentComponent() {
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSources, setSelectedSources] = useState<string[]>(["all"]);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [loading, setLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isFetchingNews, setIsFetchingNews] = useState(false);
+  const [aiInsights, setAiInsights] = useState<{[key: string]: any}>({});
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalArticles, setTotalArticles] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Test if component is mounted on client
+  console.log('NewsPage: Component rendered, window object:', typeof window);
+  
+  // Safety effect to ensure loading states are reset if component unmounts/remounts
+  useEffect(() => {
+    return () => {
+      // Cleanup function to reset states
+      setLoading(false);
+      setIsFetchingNews(false);
+    };
+  }, []);
+  
+  // Extract sources and categories dynamically from actual news data
+  const { sources: newsSources, categories } = useMemo(() => {
+    if (!news || news.length === 0) {
+      return { sources: [], categories: [] };
+    }
+    
+    // Extract unique sources from actual news data
+    const uniqueSources = [...new Set(news.map(article => article.source))];
+    const sources = uniqueSources.map((sourceName, index) => ({
+      name: sourceName,
+      url: '',
+      category: 'general',
+      priority: index + 1
+    }));
+    
+    // Extract unique categories from actual news data
+    const uniqueCategories = [...new Set(news.map(article => article.category).filter(Boolean))];
+    const categories = ['all', ...uniqueCategories];
+    
+    return { sources, categories };
+  }, [news]);
+  
+  // Dynamic filtering based on actual data
+  const filteredNews = useMemo(() => {
+    if (!news || news.length === 0) return [];
+    
+    return news.filter(article => {
+      // Source filtering - check if article source matches selected sources
+      const matchesSource = selectedSources.includes("all") || 
+                           selectedSources.includes(article.source);
+      
+      // Category filtering - check if article category matches selected category
+      const matchesCategory = selectedCategory === "all" || 
+                             article.category === selectedCategory;
+      
+      // Search filtering - check if article matches search query
+      const matchesSearch = searchQuery === "" || 
+                           article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           article.summary.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchesSource && matchesCategory && matchesSearch;
+    });
+  }, [news, selectedSources, selectedCategory, searchQuery]);
+
+  // Load more news function for infinite scroll
+  const loadMoreNews = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    try {
+      setIsLoadingMore(true);
+      const nextPage = currentPage + 1;
+      const pageSize = 100; // Load 100 articles per page
+      
+      console.log(`Loading more news: page ${nextPage}, size ${pageSize}`);
+      
+      const results = await fetchNewsMultiSource(["all"], pageSize);
+      
+      if (results && results.articles && results.articles.length > 0) {
+        const transformedArticles = results.articles.map(article => ({
+          ...article,
+          score: (article as any).score || 0
+        }));
+        
+        // Append new articles to existing ones
+        setNews(prevNews => {
+          const newTotal = prevNews.length + transformedArticles.length;
+          console.log(`Loaded ${transformedArticles.length} more articles. Total: ${newTotal}`);
+          return [...prevNews, ...transformedArticles];
+        });
+        setCurrentPage(nextPage);
+        
+        // Check if we have more pages
+        const totalLoaded = (nextPage * pageSize);
+        setHasMore(totalLoaded < 4738); // Based on API response showing 4738 total articles
+      } else {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error('Error loading more news:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentPage, isLoadingMore, hasMore]);
+
+  // Infinite scroll hook
+  const [setInfiniteRef] = useInfiniteScroll({
+    loading: isLoadingMore,
+    hasNextPage: hasMore,
+    onLoadMore: loadMoreNews,
+    rootMargin: '0px 0px 400px 0px', // Pre-load when 400px away
+    disabled: !hasMore || isLoadingMore
+  });
+
+  // Load news on component mount
+  useEffect(() => {
+    const loadInitialNews = async () => {
+      try {
+        setLoading(true);
+        console.log('📰 Loading initial news...');
+        
+        const results = await fetchNewsMultiSource(["all"], 1000);
+        
+        if (results && results.articles) {
+          console.log(`✅ Loaded ${results.articles.length} articles on mount`);
+          const transformedArticles = results.articles.map(article => ({
+            ...article,
+            score: (article as any).score || 0
+          }));
+          
+          setNews(transformedArticles);
+          setHasSearched(true);
+          setLastUpdated(new Date());
+          setHasMore(transformedArticles.length < 4738);
+        } else {
+          console.log('⚠️ No articles loaded on mount');
+          setHasSearched(false);
+        }
+      } catch (error) {
+        console.error('❌ Error loading initial news:', error);
+        setHasSearched(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialNews();
+  }, []);
+
+  // Reset to all sources when page is refreshed/loaded
+  useEffect(() => {
+    // Ensure we always start with all sources
+    if (selectedSources.length === 0 || !selectedSources.includes("all")) {
+      console.log('Resetting to all sources on page load...');
+      setSelectedSources(["all"]);
+    }
+  }, [selectedSources]);
+
+  // Handle news fetch from sources
+  const handleRefresh = async () => {
+    try {
+      console.log('🔄 Starting news fetch...');
+      setLoading(true);
+      setIsFetchingNews(true);
+      
+      // Set a safety timeout to prevent infinite loading
+      const safetyTimeout = setTimeout(() => {
+        console.log('⏰ Safety timeout reached, stopping fetch...');
+        setLoading(false);
+        setIsFetchingNews(false);
+      }, 30000); // 30 second timeout
+      
+      console.log('📡 Attempting to fetch fresh news...');
+      
+      // Try to fetch fresh news from our working API first
+      try {
+        const results = await fetchNewsMultiSource(["all"], 1000);
+        
+        if (results && results.articles && results.articles.length > 0) {
+          console.log(`✅ Fetched ${results.articles.length} articles from our API`);
+          
+          // Clear the safety timeout since we got results
+          clearTimeout(safetyTimeout);
+          
+          // Transform articles to match our local interface
+          const transformedArticles = results.articles.map(article => ({
+            ...article,
+            score: (article as any).score || 0
+          }));
+          
+          // Update state with new articles
+          setNews(transformedArticles);
+          setHasSearched(true);
+          setLastUpdated(new Date());
+          
+          // Update pagination state
+          setHasMore(transformedArticles.length < 4738);
+          
+          // Show success feedback
+          console.log('🎉 News successfully refreshed from our API!');
+        } else {
+          console.log('⚠️ No articles from our API, continuing with existing data...');
+          // Continue with existing data but mark as refreshed
+          setHasSearched(true);
+          setLastUpdated(new Date());
+        }
+      } catch (apiError) {
+        console.log('⚠️ Our API not available, continuing with existing data...', apiError);
+        // Continue with existing data but mark as refreshed
+        setHasSearched(true);
+        setLastUpdated(new Date());
+      }
+      
+    } catch (error) {
+      console.error('❌ Error fetching news:', error);
+      // Ensure states are reset even on error
+      setLoading(false);
+      setIsFetchingNews(false);
+    } finally {
+      console.log('🔄 News fetch completed, resetting states...');
+      setLoading(false);
+      setIsFetchingNews(false);
+    }
+  };
+
+  // Handle search
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    try {
+      setLoading(true);
+      setIsFetchingNews(true);
+      
+      // Reset pagination for new search
+      setCurrentPage(1);
+      setHasMore(true);
+      
+      // Always fetch from all sources for search, let frontend filtering handle the rest
+      const results = await fetchNewsMultiSource(["all"], 1000);
+      if (results && results.articles) {
+        // Transform articles to match our local interface
+        const transformedArticles = results.articles.map(article => ({
+          ...article,
+          score: (article as any).score || 0
+        }));
+        setNews(transformedArticles);
+        setHasSearched(true);
+        setLastUpdated(new Date());
+        
+        // Update pagination state
+        setHasMore(transformedArticles.length < 4738);
+      }
+    } catch (error) {
+      console.error('Error searching news:', error);
+    } finally {
+      setLoading(false);
+      setIsFetchingNews(false);
+    }
+  };
+
+  // Handle source selection - intuitive single selection behavior
+  const handleSourceChange = (source: string) => {
+    console.log('Source filter clicked:', source);
+    
+    if (source === "all") {
+      // When "All Sources" is clicked, reset filter and refresh data
+      setSelectedSources(["all"]);
+      // Refresh to get all sources
+      handleRefresh();
+    } else {
+      // When a specific source is clicked, replace current filter
+      setSelectedSources([source]);
+      // Refresh to get data from selected source
+      handleRefresh();
+    }
+  };
+
+  // Handle category selection
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+  };
+
+  // Format date function to handle various date formats
+  const formatDate = (dateString: string) => {
+    try {
+      let date: Date;
+      
+      // Handle compact format like "20250820T162849"
+      if (/^\d{8}T\d{6}$/.test(dateString)) {
+        const year = dateString.substring(0, 4);
+        const month = dateString.substring(4, 6);
+        const day = dateString.substring(6, 8);
+        const hour = dateString.substring(9, 11);
+        const minute = dateString.substring(11, 13);
+        const second = dateString.substring(13, 15);
+        
+        date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute), parseInt(second));
+      } else {
+        // Handle standard ISO format
+        date = new Date(dateString);
+      }
+      
+      if (isNaN(date.getTime())) {
+        return "Date unavailable";
+      }
+      
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+    } catch (error) {
+      console.error('Date parsing error:', error, 'for dateString:', dateString);
+      return "Date unavailable";
+    }
+  };
+
+  // AI Functions
+  const aiSummarize = async (articleId: string, title: string, summary: string) => {
+    const insightKey = `summary_${articleId}`;
+    setAiInsights(prev => ({ ...prev, [insightKey]: { loading: true, content: 'Generating AI summary...' } }));
+    
+    try {
+      // Try to use our working AI news API first
+      try {
+        const response = await fetch('/api/ai-news');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.news) {
+            // Find if we already have an AI summary for this article
+            const existingArticle = data.news.find((item: any) => 
+              item._id === articleId || item.title === title
+            );
+            
+            if (existingArticle && existingArticle.ai_summary) {
+              setAiInsights(prev => ({ 
+                ...prev, 
+                [insightKey]: { 
+                  loading: false, 
+                  content: existingArticle.ai_summary,
+                  type: 'summary',
+                  cached: true
+                } 
+              }));
+              return;
+            }
+          }
+        }
+      } catch (apiError) {
+        console.log('Our AI API not available, trying fallback...');
+      }
+      
+      // Fallback: Show user-friendly message about AI service availability
+      setAiInsights(prev => ({ 
+        ...prev, 
+        [insightKey]: { 
+          loading: false, 
+          content: 'AI summary service is currently unavailable. Please check back later.',
+          type: 'info'
+        } 
+      }));
+      
+    } catch (error) {
+      console.error('Summary generation error:', error);
+      setAiInsights(prev => ({ 
+        ...prev, 
+        [insightKey]: { 
+          loading: false, 
+          content: 'Unable to generate summary at this time. Please try again later.',
+          type: 'error'
+        } 
+      }));
+    }
+  };
+
+  const aiAnalyzeSentiment = async (articleId: string, title: string, summary: string) => {
+    const insightKey = `sentiment_${articleId}`;
+    setAiInsights(prev => ({ ...prev, [insightKey]: { loading: true, content: 'Analyzing sentiment...' } }));
+    
+    try {
+      // Try to use our working AI news API first
+      try {
+        const response = await fetch('/api/ai-news');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.news) {
+            // Find if we already have sentiment analysis for this article
+            const existingArticle = data.news.find((item: any) => 
+              item._id === articleId || item.title === title
+            );
+            
+            if (existingArticle && existingArticle.sentiment) {
+              setAiInsights(prev => ({ 
+                ...prev, 
+                [insightKey]: { 
+                  loading: false, 
+                  content: `Sentiment: ${existingArticle.sentiment}`,
+                  type: 'sentiment',
+                  cached: true
+                } 
+              }));
+              return;
+            }
+          }
+        }
+      } catch (apiError) {
+        console.log('Our AI API not available, trying fallback...');
+      }
+      
+      // Fallback: Show user-friendly message about AI service availability
+      setAiInsights(prev => ({ 
+        ...prev, 
+        [insightKey]: { 
+          loading: false, 
+          content: 'AI sentiment analysis service is currently unavailable. Please check back later.',
+          type: 'info'
+        } 
+      }));
+      
+    } catch (error) {
+      console.error('Sentiment analysis error:', error);
+      setAiInsights(prev => ({ 
+        ...prev, 
+        [insightKey]: { 
+          loading: false, 
+          content: 'Unable to analyze sentiment at this time. Please try again later.',
+          type: 'error'
+        } 
+      }));
+    }
+  };
+
+
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      {/* Ensure SideBar is only rendered when context is ready */}
+      <div className="sidebar-container">
+        <SidebarWrapper />
+      </div>
+      <div className="main-content-area">
+          <NavBarWrapper />
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+              {/* Header */}
+              <div className="mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-4">News & Media</h1>
+                    <p className="text-lg text-gray-600">Multi-source news with RSS fallbacks and AI sentiment analysis</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleRefresh}
+                      disabled={isFetchingNews}
+                      className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isFetchingNews ? 'animate-spin' : ''}`} />
+                      {isFetchingNews ? 'Fetching...' : 'Fetch More News'}
+                    </button>
+                    {isFetchingNews && (
+                      <button
+                        onClick={() => {
+                          console.log('🔄 Manual reset triggered');
+                          setLoading(false);
+                          setIsFetchingNews(false);
+                        }}
+                        className="px-3 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors flex items-center gap-2"
+                        title="Reset if button is stuck"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+
+
+              {/* Search and Filters */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1 relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search for news, topics, or keywords..."
+                      className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    />
+                  </div>
+                  <select
+                    className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value={selectedCategory}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+
+                  >
+                    {categories.length === 0 ? (
+                      <option>No categories available yet</option>
+                    ) : (
+                      categories.map(cat => (
+                        <option key={cat} value={cat}>
+                          {cat === 'all' ? 'All Categories' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                        </option>
+                      ))
+                    )}
+                  </select>
+
+                  <button
+                    onClick={handleSearch}
+                    disabled={loading}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Searching...' : 'Search'}
+                  </button>
+                </div>
+                
+                {/* News Sources Filter */}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">News Sources:</label>
+                  
+
+                  
+                  <div className="flex flex-wrap gap-2">
+                                      {newsSources.length === 0 ? (
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span className="text-sm">No sources available yet. Load some news first.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleSourceChange("all")}
+                        className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                          selectedSources.includes("all")
+                            ? "bg-blue-100 text-blue-700 border border-blue-300"
+                            : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
+                        }`}
+                      >
+                        All Sources
+                      </button>
+                      {newsSources.map((source) => (
+                        <button
+                          key={source.name}
+                          onClick={() => handleSourceChange(source.name)}
+                          className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                            selectedSources.includes(source.name)
+                              ? "bg-blue-100 text-blue-700 border border-blue-300"
+                              : "bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200"
+                          }`}
+                        >
+                          {source.name.replace("_", " ").split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                  </div>
+                  
+
+                </div>
+              </div>
+
+                  {/* News Content */}
+                  <div>
+                    {/* News Status Indicator */}
+                    {!loading && news.length > 0 && (
+                      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-800">
+                              Loaded {news.length} of {totalArticles} total articles
+                            </span>
+                          </div>
+                          {hasMore && (
+                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                              More available
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {loading ? (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <RefreshCw className="w-10 h-10 text-blue-600 animate-spin" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4">Fetching Fresh News...</h3>
+                        <p className="text-lg text-gray-600">Gathering latest articles from all sources</p>
+                      </div>
+                    ) : (news || []).length === 0 ? (
+                      <div className="text-center py-16">
+                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                          <Search className="w-10 h-10 text-blue-600" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-4">Multi-Source News Dashboard</h3>
+                        <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-6">
+                          This news page automatically loads articles from multiple sources including financial data providers, news APIs, RSS feeds, and more. 
+                          Use the search above to find specific topics, or browse the latest news below.
+                        </p>
+                        <div className="flex flex-wrap justify-center gap-3">
+                          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-full">Financial News</span>
+                          <span className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-full">Business</span>
+                          <span className="px-3 py-1 bg-orange-100 text-orange-700 text-sm rounded-full">Technology</span>
+                          <span className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">RSS Feeds</span>
+                        </div>
+                        <div className="mt-6 text-center">
+                          <button 
+                            onClick={handleRefresh}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                            Load News Now
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-6">
+                        {filteredNews.length > 0 ? (
+                          <>
+                            {lastUpdated && (
+                              <div className="text-sm text-gray-500 mb-4">
+                                Last updated: {formatDate(lastUpdated.toISOString())}
+                              </div>
+                            )}
+                            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                              {filteredNews.map((article) => (
+                                <div key={article.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                                  <div className="flex items-start justify-between mb-4">
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                      {article.source.replace("_", " ").split(" ").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+                                    </span>
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
+                                      {article.category}
+                                    </span>
+                                  </div>
+                                  <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
+                                    {article.title}
+                                  </h3>
+                                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                                    {article.summary}
+                                  </p>
+                                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                                    <span>{formatDate(article.publishedAt)}</span>
+                                    {article.sentiment && (
+                                      <span className={`px-2 py-1 rounded ${
+                                        article.sentiment === 'positive' ? 'bg-green-100 text-green-700' :
+                                        article.sentiment === 'negative' ? 'bg-red-100 text-red-700' :
+                                        'bg-gray-100 text-gray-700'
+                                      }`}>
+                                        {article.sentiment}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* AI Action Buttons */}
+                                  <div className="mb-4">
+                                    <div className="flex flex-wrap gap-2">
+                                      <button 
+                                      onClick={() => aiSummarize(article.id, article.title, article.summary)}
+                                      disabled={aiInsights[`summary_${article.id}`]?.loading}
+                                      className="px-3 py-1 bg-green-100 text-green-700 text-sm rounded-lg hover:bg-green-200 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <Brain className="w-3 h-3" />
+                                      {aiInsights[`summary_${article.id}`]?.loading ? 'Processing...' : 'AI Summary'}
+                                    </button>
+                                    <button 
+                                      onClick={() => aiAnalyzeSentiment(article.id, article.title, article.summary)}
+                                      disabled={aiInsights[`sentiment_${article.id}`]?.loading}
+                                      className="px-3 py-1 bg-blue-100 text-blue-700 text-sm rounded-lg hover:bg-blue-200 transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      <MessageSquare className="w-3 h-3" />
+                                      {aiInsights[`sentiment_${article.id}`]?.loading ? 'Processing...' : 'Sentiment'}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* AI Insights Display */}
+                                {Object.keys(aiInsights).filter(key => key.includes(`_${article.id}`)).map(key => {
+                                  const insight = aiInsights[key];
+                                  if (!insight) return null;
+                                  
+                                  return (
+                                    <div key={key} className="mb-3 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-500">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <Zap className="w-4 h-4 text-blue-600" />
+                                        <span className="text-sm font-medium text-gray-700">
+                                          {key.includes('summary') ? 'AI Summary' : 
+                                           key.includes('sentiment') ? 'Sentiment Analysis' : 'AI Insight'}
+                                        </span>
+                                      </div>
+                                      <div className="text-sm text-gray-600">
+                                        {insight.loading ? (
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                            {insight.content}
+                                          </div>
+                                        ) : (
+                                          <div>
+                                            <p className={insight.type === 'error' ? 'text-red-600' : ''}>
+                                              {insight.content}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+
+                                <div className="flex items-center justify-between">
+                                  <a
+                                    href={article.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                                  >
+                                    Read More
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {/* Load More Button */}
+                          {hasMore && (
+                            <div className="flex justify-center py-6">
+                              <button
+                                onClick={loadMoreNews}
+                                disabled={isLoadingMore}
+                                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                              >
+                                {isLoadingMore ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Loading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="w-4 h-4" />
+                                    Load More News
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Infinite Scroll Trigger */}
+                          {hasMore && (
+                            <div 
+                              ref={setInfiniteRef}
+                              className="flex justify-center py-4"
+                            >
+                              <div className="text-gray-500 text-sm">
+                                Or scroll down to auto-load more news
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* End of News Indicator */}
+                          {!hasMore && news.length > 0 && (
+                            <div className="text-center py-8 text-gray-500">
+                              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                              <p>You've reached the end of all available news!</p>
+                              <p className="text-sm mt-1">Total articles loaded: {news.length} of {totalArticles}</p>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="text-center py-16">
+                          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <AlertCircle className="w-10 h-10 text-gray-400" />
+                          </div>
+                          <h3 className="text-2xl font-bold text-gray-900 mb-4">No News Found</h3>
+                          <p className="text-lg text-gray-600 mb-6">
+                            Try adjusting your search terms or filters to find relevant news articles.
+                          </p>
+                          <button
+                            onClick={handleRefresh}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                          >
+                            Refresh News
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </main>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Export the page using the dynamic component
+export default function NewsPage() {
+  return <NewsPageContent />;
+}
